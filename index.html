@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meine Rezepte</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .search-bar {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .add-btn {
+            margin: 20px 30px;
+            padding: 15px 30px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .add-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .recipes {
+            padding: 0 30px 30px 30px;
+        }
+
+        .recipe-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+
+        .recipe-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.15);
+        }
+
+        .recipe-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .recipe-name {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .recipe-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .edit-btn {
+            background: #007bff;
+            color: white;
+        }
+
+        .edit-btn:hover {
+            background: #0056b3;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        .save-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .cancel-btn {
+            background: #6c757d;
+            color: white;
+        }
+
+        .recipe-details {
+            line-height: 1.8;
+        }
+
+        .recipe-label {
+            font-weight: bold;
+            color: #667eea;
+            display: inline-block;
+            min-width: 100px;
+        }
+
+        .edit-form {
+            display: grid;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            min-height: 60px;
+            resize: vertical;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2em;
+            color: #666;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 50px;
+            color: #999;
+            font-size: 1.1em;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                border-radius: 0;
+            }
+            
+            .recipe-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍳 Meine Rezepte</h1>
+            <p>Deine persönliche Rezept-Datenbank</p>
+        </div>
+
+        <div class="search-bar">
+            <input 
+                type="text" 
+                class="search-input" 
+                id="searchInput"
+                placeholder="🔍 Suche nach Rezeptname oder Zutaten (z.B. 'Blaubeeren')..."
+            >
+        </div>
+
+        <button class="add-btn" id="addBtn">➕ Neues Rezept hinzufügen</button>
+
+        <div class="recipes" id="recipesContainer">
+            <div class="loading">Lade Rezepte...</div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://mzzpjcztfahnjvjzyirk.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16enBqY3p0ZmFobmp2anp5aXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2Mjc3OTgsImV4cCI6MjA4NDIwMzc5OH0.cOuygh4kK12P0nT2A1ZJ_BOjcl4Jiie3pHHrpgfzqEM';
+        
+        const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        let recipes = [];
+        let editingId = null;
+
+        async function loadRecipes() {
+            try {
+                const { data, error } = await db
+                    .from('rezepte')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                recipes = data || [];
+                displayRecipes();
+            } catch (error) {
+                console.error('Fehler beim Laden:', error);
+                document.getElementById('recipesContainer').innerHTML = 
+                    '<div class="no-results">❌ Fehler beim Laden der Rezepte</div>';
+            }
+        }
+
+        function displayRecipes(filteredRecipes = null) {
+            const container = document.getElementById('recipesContainer');
+            const recipesToShow = filteredRecipes || recipes;
+            
+            if (recipesToShow.length === 0) {
+                container.innerHTML = '<div class="no-results">Keine Rezepte gefunden 😕</div>';
+                return;
+            }
+            
+            container.innerHTML = recipesToShow.map(recipe => `
+                <div class="recipe-card" data-id="${recipe.id}">
+                    <div class="recipe-header">
+                        <div class="recipe-name">${recipe.name || ''}</div>
+                        <div class="recipe-actions">
+                            <button class="btn edit-btn" onclick="editRecipe(${recipe.id})">✏️ Bearbeiten</button>
+                            <button class="btn delete-btn" onclick="deleteRecipe(${recipe.id})">🗑️ Löschen</button>
+                        </div>
+                    </div>
+                    <div class="recipe-details">
+                        <div><span class="recipe-label">Zutaten:</span> ${recipe.zutaten || ''}</div>
+                        <div><span class="recipe-label">Ort:</span> ${recipe.ort || ''}</div>
+                        <div><span class="recipe-label">Kommentar:</span> ${recipe.kommentar || ''}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function editRecipe(id) {
+            const recipe = recipes.find(r => r.id === id);
+            if (!recipe) return;
+            
+            editingId = id;
+            
+            const card = document.querySelector(`[data-id="${id}"]`);
+            card.innerHTML = `
+                <div class="edit-form">
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" id="editName" value="${recipe.name || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Zutaten (mit Komma getrennt):</label>
+                        <textarea id="editZutaten">${recipe.zutaten || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Ort:</label>
+                        <input type="text" id="editOrt" value="${recipe.ort || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Kommentar:</label>
+                        <textarea id="editKommentar">${recipe.kommentar || ''}</textarea>
+                    </div>
+                    <div class="recipe-actions">
+                        <button class="btn save-btn" onclick="saveRecipe()">💾 Speichern</button>
+                        <button class="btn cancel-btn" onclick="cancelEdit()">❌ Abbrechen</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function saveRecipe() {
+            const name = document.getElementById('editName').value;
+            const zutaten = document.getElementById('editZutaten').value;
+            const ort = document.getElementById('editOrt').value;
+            const kommentar = document.getElementById('editKommentar').value;
+            
+            if (!name.trim()) {
+                alert('Bitte gib einen Namen ein!');
+                return;
+            }
+            
+            try {
+                if (editingId !== null) {
+                    const { error } = await db
+                        .from('rezepte')
+                        .update({ name, zutaten, ort, kommentar })
+                        .eq('id', editingId);
+                    
+                    if (error) throw error;
+                    alert('✅ Rezept aktualisiert!');
+                } else {
+                    const { error } = await db
+                        .from('rezepte')
+                        .insert([{ name, zutaten, ort, kommentar }]);
+                    
+                    if (error) throw error;
+                    alert('✅ Rezept gespeichert!');
+                }
+                
+                editingId = null;
+                await loadRecipes();
+            } catch (error) {
+                console.error('Fehler beim Speichern:', error);
+                alert('❌ Fehler beim Speichern: ' + error.message);
+            }
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            displayRecipes();
+        }
+
+        async function deleteRecipe(id) {
+            const recipe = recipes.find(r => r.id === id);
+            if (!confirm(`Rezept "${recipe.name}" wirklich löschen?`)) return;
+            
+            try {
+                const { error } = await db
+                    .from('rezepte')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                alert('✅ Rezept gelöscht!');
+                await loadRecipes();
+            } catch (error) {
+                console.error('Fehler beim Löschen:', error);
+                alert('❌ Fehler beim Löschen: ' + error.message);
+            }
+        }
+
+        document.getElementById('addBtn').addEventListener('click', () => {
+            const container = document.getElementById('recipesContainer');
+            container.insertAdjacentHTML('afterbegin', `
+                <div class="recipe-card">
+                    <div class="edit-form">
+                        <div class="form-group">
+                            <label>Name:</label>
+                            <input type="text" id="editName">
+                        </div>
+                        <div class="form-group">
+                            <label>Zutaten (mit Komma getrennt):</label>
+                            <textarea id="editZutaten"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Ort:</label>
+                            <input type="text" id="editOrt">
+                        </div>
+                        <div class="form-group">
+                            <label>Kommentar:</label>
+                            <textarea id="editKommentar"></textarea>
+                        </div>
+                        <div class="recipe-actions">
+                            <button class="btn save-btn" onclick="saveRecipe()">💾 Speichern</button>
+                            <button class="btn cancel-btn" onclick="cancelEdit()">❌ Abbrechen</button>
+                        </div>
+                    </div>
+                </div>
+            `);
+        });
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            if (!searchTerm) {
+                displayRecipes();
+                return;
+            }
+            
+            const filtered = recipes.filter(recipe => 
+                (recipe.name || '').toLowerCase().includes(searchTerm) ||
+                (recipe.zutaten || '').toLowerCase().includes(searchTerm)
+            );
+            
+            displayRecipes(filtered);
+        });
+
+        loadRecipes();
+    </script>
+</body>
+</html>
