@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meine Rezepte</title>
+    <title>Rezepte</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
@@ -14,178 +14,191 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            background: #f5f5f5;
             padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
+            position: relative;
+            min-height: 100vh;
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
+            max-width: 1400px;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
         }
 
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-
-        .search-bar {
-            padding: 20px 30px;
-            background: #f8f9fa;
-            border-bottom: 2px solid #e9ecef;
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
         }
 
         .search-input {
-            width: 100%;
-            padding: 15px 20px;
-            font-size: 16px;
-            border: 2px solid #dee2e6;
-            border-radius: 10px;
+            flex: 1;
+            padding: 10px 15px;
+            font-size: 14px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
             outline: none;
-            transition: all 0.3s;
         }
 
         .search-input:focus {
             border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
         .add-btn {
-            margin: 20px 30px;
-            padding: 15px 30px;
+            width: 44px;
+            height: 44px;
             background: #28a745;
             color: white;
             border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
+            border-radius: 8px;
+            font-size: 24px;
             cursor: pointer;
-            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
         }
 
         .add-btn:hover {
             background: #218838;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+            transform: scale(1.05);
         }
 
-        .recipes {
-            padding: 0 30px 30px 30px;
+        .recipes-grid {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding-bottom: 40px;
         }
 
         .recipe-card {
             background: white;
-            border: 2px solid #e9ecef;
-            border-radius: 15px;
+            border-radius: 12px;
             padding: 20px;
-            margin-bottom: 15px;
-            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.2s;
         }
 
         .recipe-card:hover {
-            border-color: #667eea;
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.15);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
         }
 
-        .recipe-header {
+        .recipe-card.expanded {
+            cursor: default;
+        }
+
+        .recipe-top {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
+            align-items: flex-start;
+            gap: 10px;
         }
 
         .recipe-name {
-            font-size: 1.5em;
-            font-weight: bold;
+            font-size: 18px;
+            font-weight: 600;
             color: #333;
+            flex: 1;
+            word-break: break-word;
+            cursor: pointer;
+        }
+
+        .recipe-name:hover {
+            color: #667eea;
         }
 
         .recipe-actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
 
-        .btn {
-            padding: 8px 16px;
+        .icon-btn {
+            width: 32px;
+            height: 32px;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
         }
 
         .edit-btn {
-            background: #007bff;
-            color: white;
+            background: #e3f2fd;
         }
 
         .edit-btn:hover {
-            background: #0056b3;
+            background: #bbdefb;
         }
 
         .delete-btn {
-            background: #dc3545;
-            color: white;
+            background: #ffebee;
         }
 
         .delete-btn:hover {
-            background: #c82333;
-        }
-
-        .save-btn {
-            background: #28a745;
-            color: white;
-        }
-
-        .cancel-btn {
-            background: #6c757d;
-            color: white;
+            background: #ffcdd2;
         }
 
         .recipe-details {
-            line-height: 1.8;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            display: none;
+            line-height: 1.6;
         }
 
-        .recipe-label {
-            font-weight: bold;
+        .recipe-details.show {
+            display: block;
+        }
+
+        .detail-row {
+            margin-bottom: 10px;
+        }
+
+        .detail-label {
+            font-weight: 600;
             color: #667eea;
-            display: inline-block;
-            min-width: 100px;
+            font-size: 14px;
+        }
+
+        .detail-value {
+            color: #666;
+            font-size: 14px;
+            margin-top: 4px;
         }
 
         .edit-form {
-            display: grid;
-            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
         }
 
         .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
+            margin-bottom: 12px;
         }
 
         .form-group label {
-            font-weight: bold;
+            display: block;
+            font-weight: 600;
+            font-size: 13px;
             color: #333;
+            margin-bottom: 6px;
         }
 
         .form-group input,
         .form-group textarea {
-            padding: 10px;
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
             font-size: 14px;
             font-family: inherit;
         }
@@ -201,58 +214,80 @@
             resize: vertical;
         }
 
-        .loading {
-            text-align: center;
-            padding: 50px;
-            font-size: 1.2em;
-            color: #666;
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
         }
 
-        .no-results {
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .save-btn {
+            background: #28a745;
+            color: white;
+            flex: 1;
+        }
+
+        .save-btn:hover {
+            background: #218838;
+        }
+
+        .cancel-btn {
+            background: #6c757d;
+            color: white;
+            flex: 1;
+        }
+
+        .cancel-btn:hover {
+            background: #5a6268;
+        }
+
+        .loading,         .no-results {
             text-align: center;
-            padding: 50px;
+            padding: 60px 20px;
             color: #999;
-            font-size: 1.1em;
+            font-size: 16px;
+            grid-column: 1 / -1;
         }
 
         @media (max-width: 768px) {
-            .container {
-                border-radius: 0;
+            .header {
+                flex-wrap: wrap;
             }
             
-            .recipe-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
+            .title {
+                width: 100%;
+                margin-bottom: 10px;
             }
-            
-            h1 {
-                font-size: 1.8em;
+
+            .recipes-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🍳 Meine Rezepte</h1>
-            <p>Deine persönliche Rezept-Datenbank</p>
-        </div>
+    <div class="header">
+        <div class="title">Rezepte</div>
+        <input 
+            type="text" 
+            class="search-input" 
+            id="searchInput"
+            placeholder="Suche"
+        >
+        <button class="add-btn" id="addBtn">+</button>
+    </div>
 
-        <div class="search-bar">
-            <input 
-                type="text" 
-                class="search-input" 
-                id="searchInput"
-                placeholder="🔍 Suche nach Rezeptname oder Zutaten (z.B. 'Blaubeeren')..."
-            >
-        </div>
-
-        <button class="add-btn" id="addBtn">➕ Neues Rezept hinzufügen</button>
-
-        <div class="recipes" id="recipesContainer">
-            <div class="loading">Lade Rezepte...</div>
-        </div>
+    <div class="recipes-grid" id="recipesContainer">
+        <div class="loading">Lade Rezepte...</div>
     </div>
 
     <script>
@@ -287,26 +322,40 @@
             const recipesToShow = filteredRecipes || recipes;
             
             if (recipesToShow.length === 0) {
-                container.innerHTML = '<div class="no-results">Keine Rezepte gefunden 😕</div>';
+                container.innerHTML = '<div class="no-results">Keine Rezepte gefunden</div>';
                 return;
             }
             
             container.innerHTML = recipesToShow.map(recipe => `
                 <div class="recipe-card" data-id="${recipe.id}">
-                    <div class="recipe-header">
-                        <div class="recipe-name">${recipe.name || ''}</div>
+                    <div class="recipe-top">
+                        <div class="recipe-name" onclick="toggleDetails(${recipe.id})">${recipe.name || 'Unbenannt'}</div>
                         <div class="recipe-actions">
-                            <button class="btn edit-btn" onclick="editRecipe(${recipe.id})">✏️ Bearbeiten</button>
-                            <button class="btn delete-btn" onclick="deleteRecipe(${recipe.id})">🗑️ Löschen</button>
+                            <button class="icon-btn edit-btn" onclick="editRecipe(${recipe.id}); event.stopPropagation();">✏️</button>
+                            <button class="icon-btn delete-btn" onclick="deleteRecipe(${recipe.id}); event.stopPropagation();">🗑️</button>
                         </div>
                     </div>
-                    <div class="recipe-details">
-                        <div><span class="recipe-label">Zutaten:</span> ${recipe.zutaten || ''}</div>
-                        <div><span class="recipe-label">Ort:</span> ${recipe.ort || ''}</div>
-                        <div><span class="recipe-label">Kommentar:</span> ${recipe.kommentar || ''}</div>
+                    <div class="recipe-details" id="details-${recipe.id}">
+                        <div class="detail-row">
+                            <div class="detail-label">Zutaten:</div>
+                            <div class="detail-value">${recipe.zutaten || '-'}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Ort:</div>
+                            <div class="detail-value">${recipe.ort || '-'}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Kommentar:</div>
+                            <div class="detail-value">${recipe.kommentar || '-'}</div>
+                        </div>
                     </div>
                 </div>
             `).join('');
+        }
+
+        function toggleDetails(id) {
+            const details = document.getElementById(`details-${id}`);
+            details.classList.toggle('show');
         }
 
         function editRecipe(id) {
@@ -317,13 +366,16 @@
             
             const card = document.querySelector(`[data-id="${id}"]`);
             card.innerHTML = `
+                <div class="recipe-top">
+                    <div class="recipe-name">Bearbeiten</div>
+                </div>
                 <div class="edit-form">
                     <div class="form-group">
                         <label>Name:</label>
                         <input type="text" id="editName" value="${recipe.name || ''}">
                     </div>
                     <div class="form-group">
-                        <label>Zutaten (mit Komma getrennt):</label>
+                        <label>Zutaten:</label>
                         <textarea id="editZutaten">${recipe.zutaten || ''}</textarea>
                     </div>
                     <div class="form-group">
@@ -334,7 +386,7 @@
                         <label>Kommentar:</label>
                         <textarea id="editKommentar">${recipe.kommentar || ''}</textarea>
                     </div>
-                    <div class="recipe-actions">
+                    <div class="form-actions">
                         <button class="btn save-btn" onclick="saveRecipe()">💾 Speichern</button>
                         <button class="btn cancel-btn" onclick="cancelEdit()">❌ Abbrechen</button>
                     </div>
@@ -408,13 +460,16 @@
             const container = document.getElementById('recipesContainer');
             container.insertAdjacentHTML('afterbegin', `
                 <div class="recipe-card">
+                    <div class="recipe-top">
+                        <div class="recipe-name">Neues Rezept</div>
+                    </div>
                     <div class="edit-form">
                         <div class="form-group">
                             <label>Name:</label>
                             <input type="text" id="editName">
                         </div>
                         <div class="form-group">
-                            <label>Zutaten (mit Komma getrennt):</label>
+                            <label>Zutaten:</label>
                             <textarea id="editZutaten"></textarea>
                         </div>
                         <div class="form-group">
@@ -425,13 +480,14 @@
                             <label>Kommentar:</label>
                             <textarea id="editKommentar"></textarea>
                         </div>
-                        <div class="recipe-actions">
+                        <div class="form-actions">
                             <button class="btn save-btn" onclick="saveRecipe()">💾 Speichern</button>
                             <button class="btn cancel-btn" onclick="cancelEdit()">❌ Abbrechen</button>
                         </div>
                     </div>
                 </div>
             `);
+            container.scrollTop = 0;
         });
 
         document.getElementById('searchInput').addEventListener('input', (e) => {
