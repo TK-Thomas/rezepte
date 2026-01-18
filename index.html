@@ -293,11 +293,31 @@
     <script>
         const SUPABASE_URL = 'https://mzzpjcztfahnjvjzyirk.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16enBqY3p0ZmFobmp2anp5aXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2Mjc3OTgsImV4cCI6MjA4NDIwMzc5OH0.cOuygh4kK12P0nT2A1ZJ_BOjcl4Jiie3pHHrpgfzqEM';
+        const PASSWORD = 'LKRezepte';
         
         const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
         let recipes = [];
         let editingId = null;
+        let isAuthenticated = false;
+
+        function checkPassword() {
+            const stored = sessionStorage.getItem('recipeAuth');
+            if (stored === PASSWORD) {
+                isAuthenticated = true;
+                return true;
+            }
+            
+            const input = prompt('Passwort eingeben:');
+            if (input === PASSWORD) {
+                sessionStorage.setItem('recipeAuth', PASSWORD);
+                isAuthenticated = true;
+                return true;
+            }
+            
+            alert('❌ Falsches Passwort!');
+            return false;
+        }
 
         async function loadRecipes() {
             try {
@@ -359,6 +379,8 @@
         }
 
         function editRecipe(id) {
+            if (!checkPassword()) return;
+            
             const recipe = recipes.find(r => r.id === id);
             if (!recipe) return;
             
@@ -437,6 +459,8 @@
         }
 
         async function deleteRecipe(id) {
+            if (!checkPassword()) return;
+            
             const recipe = recipes.find(r => r.id === id);
             if (!confirm(`Rezept "${recipe.name}" wirklich löschen?`)) return;
             
@@ -457,6 +481,8 @@
         }
 
         document.getElementById('addBtn').addEventListener('click', () => {
+            if (!checkPassword()) return;
+            
             const container = document.getElementById('recipesContainer');
             container.insertAdjacentHTML('afterbegin', `
                 <div class="recipe-card">
