@@ -320,6 +320,12 @@
         }
 
         async function loadRecipes() {
+            if (!isAuthenticated && !checkPassword()) {
+                document.getElementById('recipesContainer').innerHTML = 
+                    '<div class="no-results">🔒 Zugriff verweigert</div>';
+                return;
+            }
+            
             try {
                 const { data, error } = await db
                     .from('rezepte')
