@@ -14,7 +14,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a1a url('https://i.imgur.com/nan7pSN.png') center center;
+            background: #1a1a1a url('https://i.imgur.com/Vtu32gF.jpeg') center center;
             background-size: cover;
             background-attachment: fixed;
             padding: 20px;
@@ -41,6 +41,27 @@
             display: flex;
             align-items: center;
             gap: 20px;
+        }
+
+        .search-container {
+            flex: 1;
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-select {
+            padding: 10px 15px;
+            font-size: 14px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            background: white;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        .filter-select:focus {
+            border-color: #667eea;
         }
 
         .title {
@@ -295,12 +316,19 @@
 <body>
     <div class="header">
         <div class="title">Rezepte</div>
-        <input 
-            type="text" 
-            class="search-input" 
-            id="searchInput"
-            placeholder="Suche"
-        >
+        <div class="search-container">
+            <input 
+                type="text" 
+                class="search-input" 
+                id="searchInput"
+                placeholder="Suche"
+            >
+            <select class="filter-select" id="filterSelect">
+                <option value="alle">Alle</option>
+                <option value="süß">Süß</option>
+                <option value="herzhaft">Herzhaft</option>
+            </select>
+        </div>
         <button class="add-btn" id="addBtn">+</button>
     </div>
 
@@ -381,6 +409,10 @@
                     </div>
                     <div class="recipe-details" id="details-${recipe.id}">
                         <div class="detail-row">
+                            <div class="detail-label">Art:</div>
+                            <div class="detail-value">${recipe.art || '-'}</div>
+                        </div>
+                        <div class="detail-row">
                             <div class="detail-label">Zutaten:</div>
                             <div class="detail-value">${recipe.zutaten || '-'}</div>
                         </div>
@@ -421,6 +453,14 @@
                         <input type="text" id="editName" value="${recipe.name || ''}">
                     </div>
                     <div class="form-group">
+                        <label>Art:</label>
+                        <select id="editArt" style="width: 100%; padding: 8px 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; font-family: inherit;">
+                            <option value="">-</option>
+                            <option value="süß" ${recipe.art === 'süß' ? 'selected' : ''}>Süß</option>
+                            <option value="herzhaft" ${recipe.art === 'herzhaft' ? 'selected' : ''}>Herzhaft</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>Zutaten:</label>
                         <textarea id="editZutaten">${recipe.zutaten || ''}</textarea>
                     </div>
@@ -442,6 +482,7 @@
 
         async function saveRecipe() {
             const name = document.getElementById('editName').value;
+            const art = document.getElementById('editArt').value;
             const zutaten = document.getElementById('editZutaten').value;
             const ort = document.getElementById('editOrt').value;
             const kommentar = document.getElementById('editKommentar').value;
@@ -455,7 +496,7 @@
                 if (editingId !== null) {
                     const { error } = await db
                         .from('rezepte')
-                        .update({ name, zutaten, ort, kommentar })
+                        .update({ name, art, zutaten, ort, kommentar })
                         .eq('id', editingId);
                     
                     if (error) throw error;
@@ -463,7 +504,7 @@
                 } else {
                     const { error } = await db
                         .from('rezepte')
-                        .insert([{ name, zutaten, ort, kommentar }]);
+                        .insert([{ name, art, zutaten, ort, kommentar }]);
                     
                     if (error) throw error;
                     alert('✅ Rezept gespeichert!');
@@ -519,6 +560,14 @@
                             <input type="text" id="editName">
                         </div>
                         <div class="form-group">
+                            <label>Art:</label>
+                            <select id="editArt" style="width: 100%; padding: 8px 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; font-family: inherit;">
+                                <option value="">-</option>
+                                <option value="süß">Süß</option>
+                                <option value="herzhaft">Herzhaft</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label>Zutaten:</label>
                             <textarea id="editZutaten"></textarea>
                         </div>
@@ -540,21 +589,32 @@
             container.scrollTop = 0;
         });
 
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
+        document.getElementById('searchInput').addEventListener('input', filterRecipes);
+        document.getElementById('filterSelect').addEventListener('change', filterRecipes);
+
+        function filterRecipes() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filterValue = document.getElementById('filterSelect').value;
             
-            if (!searchTerm) {
-                displayRecipes();
-                return;
+            let filtered = recipes;
+            
+            // Filter nach Art
+            if (filterValue !== 'alle') {
+                filtered = filtered.filter(recipe => 
+                    (recipe.art || '').toLowerCase() === filterValue
+                );
             }
             
-            const filtered = recipes.filter(recipe => 
-                (recipe.name || '').toLowerCase().includes(searchTerm) ||
-                (recipe.zutaten || '').toLowerCase().includes(searchTerm)
-            );
+            // Filter nach Suchbegriff
+            if (searchTerm) {
+                filtered = filtered.filter(recipe => 
+                    (recipe.name || '').toLowerCase().includes(searchTerm) ||
+                    (recipe.zutaten || '').toLowerCase().includes(searchTerm)
+                );
+            }
             
             displayRecipes(filtered);
-        });
+        }
 
         loadRecipes();
     </script>
