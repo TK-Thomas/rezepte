@@ -40,7 +40,7 @@
             margin: 0 auto 30px;
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 12px;
         }
 
         .search-container {
@@ -92,15 +92,43 @@
             border-radius: 8px;
             font-size: 24px;
             cursor: pointer;
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
+            flex-shrink: 0;
         }
 
         .add-btn:hover {
             background: #218838;
             transform: scale(1.05);
+        }
+
+        .auth-btn {
+            height: 44px;
+            padding: 0 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .auth-btn:hover {
+            background: #5568d3;
+        }
+
+        .auth-btn.logout {
+            background: #6c757d;
+        }
+
+        .auth-btn.logout:hover {
+            background: #5a6268;
         }
 
         .recipes-grid {
@@ -130,6 +158,16 @@
 
         .recipe-card.expanded {
             cursor: default;
+        }
+
+        .recipe-image {
+            width: 100%;
+            height: 170px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 14px;
+            background: #eee;
+            display: block;
         }
 
         .recipe-top {
@@ -263,6 +301,29 @@
             min-height: 110px;
         }
 
+        .image-preview {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: normal;
+            font-size: 13px;
+            margin-top: 6px;
+            color: #333;
+        }
+
+        .checkbox-row input {
+            width: auto;
+        }
+
         .form-actions {
             display: flex;
             gap: 8px;
@@ -289,6 +350,11 @@
             background: #218838;
         }
 
+        .save-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .cancel-btn {
             background: #6c757d;
             color: white;
@@ -307,7 +373,7 @@
             grid-column: 1 / -1;
         }
 
-        /* Popup für "Neues Rezept" – groß, aber nicht Vollbild */
+        /* Popup für "Neues Rezept" und "Anmelden" – groß, aber nicht Vollbild */
         .modal-overlay {
             display: flex;
             align-items: center;
@@ -369,6 +435,7 @@
                 <option value="herzhaft">Herzhaft</option>
             </select>
         </div>
+        <button class="auth-btn" id="authBtn">🔑 Login</button>
         <button class="add-btn" id="addBtn">+</button>
     </div>
 
@@ -379,52 +446,134 @@
     <script>
         const SUPABASE_URL = 'https://mzzpjcztfahnjvjzyirk.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16enBqY3p0ZmFobmp2anp5aXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2Mjc3OTgsImV4cCI6MjA4NDIwMzc5OH0.cOuygh4kK12P0nT2A1ZJ_BOjcl4Jiie3pHHrpgfzqEM';
-        const PASSWORD = 'LKRezepte';
-        
+        const BUCKET = 'rezept-bilder';
+
         const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        
+
         let recipes = [];
         let editingId = null;
-        let isAuthenticated = false;
+        let editingBildUrl = null;
+        let isLoggedIn = false;
 
-        function checkPassword() {
-            const stored = sessionStorage.getItem('recipeAuth');
-            if (stored === PASSWORD) {
-                isAuthenticated = true;
-                return true;
-            }
-            
-            const input = prompt('Passwort eingeben:');
-            if (input === PASSWORD) {
-                sessionStorage.setItem('recipeAuth', PASSWORD);
-                isAuthenticated = true;
-                return true;
-            }
-            
-            alert('❌ Falsches Passwort!');
-            return false;
+        // ---------- Auth ----------
+
+        async function init() {
+            const { data: { session } } = await db.auth.getSession();
+            isLoggedIn = !!session;
+            updateAuthUI();
+            await loadRecipes();
         }
 
-        async function loadRecipes() {
-            if (!isAuthenticated && !checkPassword()) {
-                document.getElementById('recipesContainer').innerHTML = 
-                    '<div class="no-results">🔒 Zugriff verweigert</div>';
+        db.auth.onAuthStateChange((_event, session) => {
+            isLoggedIn = !!session;
+            updateAuthUI();
+            displayRecipes();
+        });
+
+        function updateAuthUI() {
+            const authBtn = document.getElementById('authBtn');
+            const addBtn = document.getElementById('addBtn');
+            if (isLoggedIn) {
+                authBtn.textContent = '🔓 Logout';
+                authBtn.classList.add('logout');
+                addBtn.style.display = 'flex';
+            } else {
+                authBtn.textContent = '🔑 Login';
+                authBtn.classList.remove('logout');
+                addBtn.style.display = 'none';
+            }
+        }
+
+        document.getElementById('authBtn').addEventListener('click', () => {
+            if (isLoggedIn) {
+                doLogout();
+            } else {
+                openLoginModal();
+            }
+        });
+
+        function openLoginModal() {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.id = 'loginModalOverlay';
+            overlay.innerHTML = `
+                <div class="modal-box">
+                    <div class="recipe-top">
+                        <div class="recipe-name">Anmelden</div>
+                    </div>
+                    <div class="edit-form">
+                        <div class="form-group">
+                            <label>E-Mail:</label>
+                            <input type="email" id="loginEmail">
+                        </div>
+                        <div class="form-group">
+                            <label>Passwort:</label>
+                            <input type="password" id="loginPassword">
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn save-btn" onclick="doLogin()">🔑 Anmelden</button>
+                            <button class="btn cancel-btn" onclick="closeLoginModal()">❌ Abbrechen</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            overlay.addEventListener('click', (event) => {
+                if (event.target === overlay) closeLoginModal();
+            });
+            document.body.appendChild(overlay);
+            document.addEventListener('keydown', closeLoginModalOnEscape);
+            document.getElementById('loginEmail').focus();
+        }
+
+        function closeLoginModal() {
+            const overlay = document.getElementById('loginModalOverlay');
+            if (overlay) overlay.remove();
+            document.removeEventListener('keydown', closeLoginModalOnEscape);
+        }
+
+        function closeLoginModalOnEscape(event) {
+            if (event.key === 'Escape') closeLoginModal();
+        }
+
+        async function doLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                alert('Bitte E-Mail und Passwort eingeben!');
                 return;
             }
-            
+
+            try {
+                const { error } = await db.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                closeLoginModal();
+            } catch (error) {
+                console.error('Login-Fehler:', error);
+                alert('❌ Login fehlgeschlagen: ' + error.message);
+            }
+        }
+
+        async function doLogout() {
+            await db.auth.signOut();
+        }
+
+        // ---------- Rezepte laden & anzeigen ----------
+
+        async function loadRecipes() {
             try {
                 const { data, error } = await db
                     .from('rezepte')
                     .select('*')
                     .order('created_at', { ascending: false });
-                
+
                 if (error) throw error;
-                
+
                 recipes = data || [];
                 displayRecipes();
             } catch (error) {
                 console.error('Fehler beim Laden:', error);
-                document.getElementById('recipesContainer').innerHTML = 
+                document.getElementById('recipesContainer').innerHTML =
                     '<div class="no-results">❌ Fehler beim Laden der Rezepte</div>';
             }
         }
@@ -432,20 +581,22 @@
         function displayRecipes(filteredRecipes = null) {
             const container = document.getElementById('recipesContainer');
             const recipesToShow = filteredRecipes || recipes;
-            
+
             if (recipesToShow.length === 0) {
                 container.innerHTML = '<div class="no-results">Keine Rezepte gefunden</div>';
                 return;
             }
-            
+
             container.innerHTML = recipesToShow.map(recipe => `
                 <div class="recipe-card" data-id="${recipe.id}">
+                    ${recipe.bild_url ? `<img src="${recipe.bild_url}" alt="${recipe.name || ''}" class="recipe-image">` : ''}
                     <div class="recipe-top">
                         <div class="recipe-name" onclick="toggleDetails(${recipe.id})">${recipe.name || 'Unbenannt'}</div>
+                        ${isLoggedIn ? `
                         <div class="recipe-actions">
                             <button class="icon-btn edit-btn" onclick="editRecipe(${recipe.id}); event.stopPropagation();">✏️</button>
                             <button class="icon-btn delete-btn" onclick="deleteRecipe(${recipe.id}); event.stopPropagation();">🗑️</button>
-                        </div>
+                        </div>` : ''}
                     </div>
                     <div class="recipe-details" id="details-${recipe.id}">
                         <div class="detail-row">
@@ -474,14 +625,17 @@
             details.classList.toggle('show');
         }
 
+        // ---------- Bearbeiten ----------
+
         function editRecipe(id) {
-            if (!checkPassword()) return;
-            
+            if (!isLoggedIn) { alert('Bitte zuerst einloggen.'); return; }
+
             const recipe = recipes.find(r => r.id === id);
             if (!recipe) return;
-            
+
             editingId = id;
-            
+            editingBildUrl = recipe.bild_url || null;
+
             const card = document.querySelector(`[data-id="${id}"]`);
             card.innerHTML = `
                 <div class="recipe-top">
@@ -499,6 +653,15 @@
                             <option value="süß" ${recipe.art === 'süß' ? 'selected' : ''}>Süß</option>
                             <option value="herzhaft" ${recipe.art === 'herzhaft' ? 'selected' : ''}>Herzhaft</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Bild:</label>
+                        ${recipe.bild_url ? `<img src="${recipe.bild_url}" class="image-preview" alt="Aktuelles Bild">` : ''}
+                        <input type="file" id="editBildFile" accept="image/*">
+                        ${recipe.bild_url ? `
+                        <label class="checkbox-row">
+                            <input type="checkbox" id="editBildEntfernen"> Bild entfernen
+                        </label>` : ''}
                     </div>
                     <div class="form-group">
                         <label>Zutaten:</label>
@@ -520,64 +683,111 @@
             `;
         }
 
+        function cancelEdit() {
+            editingId = null;
+            editingBildUrl = null;
+            displayRecipes();
+        }
+
+        // ---------- Bild-Upload ----------
+
+        async function uploadImage(file) {
+            const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+            const path = `${Date.now()}_${safeName}`;
+
+            const { error: uploadError } = await db.storage
+                .from(BUCKET)
+                .upload(path, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            const { data } = db.storage.from(BUCKET).getPublicUrl(path);
+            return data.publicUrl;
+        }
+
+        // ---------- Speichern ----------
+
         async function saveRecipe() {
             const name = document.getElementById('editName').value;
             const art = document.getElementById('editArt').value;
             const zutaten = document.getElementById('editZutaten').value;
             const ort = document.getElementById('editOrt').value;
             const kommentar = document.getElementById('editKommentar').value;
-            
+
             if (!name.trim()) {
                 alert('Bitte gib einen Namen ein!');
                 return;
             }
-            
+
+            const saveBtn = document.querySelector('.save-btn');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.textContent = '⏳ Speichert...';
+            }
+
             try {
+                let bildUrl = editingBildUrl;
+
+                const removeCheckbox = document.getElementById('editBildEntfernen');
+                if (removeCheckbox && removeCheckbox.checked) {
+                    bildUrl = null;
+                }
+
+                const fileInput = document.getElementById('editBildFile');
+                if (fileInput && fileInput.files && fileInput.files[0]) {
+                    bildUrl = await uploadImage(fileInput.files[0]);
+                }
+
+                const payload = { name, art, zutaten, ort, kommentar, bild_url: bildUrl };
+
                 if (editingId !== null) {
                     const { error } = await db
                         .from('rezepte')
-                        .update({ name, art, zutaten, ort, kommentar })
+                        .update(payload)
                         .eq('id', editingId);
-                    
+
                     if (error) throw error;
                     alert('✅ Rezept aktualisiert!');
                 } else {
                     const { error } = await db
                         .from('rezepte')
-                        .insert([{ name, art, zutaten, ort, kommentar }]);
-                    
+                        .insert([payload]);
+
                     if (error) throw error;
                     alert('✅ Rezept gespeichert!');
                 }
-                
+
                 editingId = null;
+                editingBildUrl = null;
                 closeAddModal();
                 await loadRecipes();
             } catch (error) {
                 console.error('Fehler beim Speichern:', error);
                 alert('❌ Fehler beim Speichern: ' + error.message);
+            } finally {
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = '💾 Speichern';
+                }
             }
         }
 
-        function cancelEdit() {
-            editingId = null;
-            displayRecipes();
-        }
+        // ---------- Löschen ----------
 
         async function deleteRecipe(id) {
-            if (!checkPassword()) return;
-            
+            if (!isLoggedIn) { alert('Bitte zuerst einloggen.'); return; }
+
             const recipe = recipes.find(r => r.id === id);
             if (!confirm(`Rezept "${recipe.name}" wirklich löschen?`)) return;
-            
+
             try {
                 const { error } = await db
                     .from('rezepte')
                     .delete()
                     .eq('id', id);
-                
+
                 if (error) throw error;
-                
+
                 alert('✅ Rezept gelöscht!');
                 await loadRecipes();
             } catch (error) {
@@ -586,8 +796,13 @@
             }
         }
 
+        // ---------- Neues Rezept (Popup) ----------
+
         function openAddModal() {
+            if (!isLoggedIn) { alert('Bitte zuerst einloggen.'); return; }
+
             editingId = null;
+            editingBildUrl = null;
 
             const overlay = document.createElement('div');
             overlay.className = 'modal-overlay';
@@ -611,6 +826,10 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label>Bild (optional):</label>
+                            <input type="file" id="editBildFile" accept="image/*">
+                        </div>
+                        <div class="form-group">
                             <label>Zutaten:</label>
                             <textarea id="editZutaten"></textarea>
                         </div>
@@ -630,15 +849,12 @@
                 </div>
             `;
 
-            // Klick auf den abgedunkelten Hintergrund schließt das Popup
             overlay.addEventListener('click', (event) => {
                 if (event.target === overlay) closeAddModal();
             });
 
             document.body.appendChild(overlay);
             document.addEventListener('keydown', closeModalOnEscape);
-
-            // Direkt ins Namensfeld springen
             document.getElementById('editName').focus();
         }
 
@@ -653,9 +869,10 @@
         }
 
         document.getElementById('addBtn').addEventListener('click', () => {
-            if (!checkPassword()) return;
             openAddModal();
         });
+
+        // ---------- Suche & Filter ----------
 
         document.getElementById('searchInput').addEventListener('input', filterRecipes);
         document.getElementById('filterSelect').addEventListener('change', filterRecipes);
@@ -663,28 +880,26 @@
         function filterRecipes() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const filterValue = document.getElementById('filterSelect').value;
-            
+
             let filtered = recipes;
-            
-            // Filter nach Art
+
             if (filterValue !== 'alle') {
-                filtered = filtered.filter(recipe => 
+                filtered = filtered.filter(recipe =>
                     (recipe.art || '').toLowerCase() === filterValue
                 );
             }
-            
-            // Filter nach Suchbegriff
+
             if (searchTerm) {
-                filtered = filtered.filter(recipe => 
+                filtered = filtered.filter(recipe =>
                     (recipe.name || '').toLowerCase().includes(searchTerm) ||
                     (recipe.zutaten || '').toLowerCase().includes(searchTerm)
                 );
             }
-            
+
             displayRecipes(filtered);
         }
 
-        loadRecipes();
+        init();
     </script>
 </body>
 </html>
